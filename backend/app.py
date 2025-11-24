@@ -1,7 +1,9 @@
 import requests
 from flask import Flask, render_template, request, jsonify
 
+
 # ----------------- AGENT CLASSES (your logic) -----------------
+
 
 class GeocodingError(Exception):
     pass
@@ -20,8 +22,14 @@ class WeatherAgent:
             "forecast_days": 1,
             "timezone": "auto",
         }
-        resp = requests.get(self.base_url, params=params, timeout=10)
-        resp.raise_for_status()
+
+        try:
+            resp = requests.get(self.base_url, params=params, timeout=10)
+            resp.raise_for_status()
+        except requests.RequestException as e:
+            print("[ERROR] Weather API error:", e)
+            return None, None
+
         data = resp.json()
 
         current_temp = data.get("current_weather", {}).get("temperature")
@@ -48,8 +56,13 @@ class PlacesAgent:
         out center;
         """
 
-        resp = requests.post(self.base_url, data={"data": query}, timeout=30)
-        resp.raise_for_status()
+        try:
+            resp = requests.post(self.base_url, data={"data": query}, timeout=30)
+            resp.raise_for_status()
+        except requests.RequestException as e:
+            print("[ERROR] Places API error:", e)
+            return []
+
         data = resp.json()
 
         names = []
@@ -71,10 +84,17 @@ class GeocodingAgent:
     def geocode(self, place: str):
         params = {"q": place, "format": "json", "limit": 1}
 
-        print(f"[DEBUG] Geocoding query: {params['q']}")  # debug
+        print(f"[DEBUG] Geocoding query: {params['q']}")
 
-        resp = requests.get(self.base_url, params=params, headers=self.headers, timeout=10)
-        resp.raise_for_status()
+        try:
+            resp = requests.get(
+                self.base_url, params=params, headers=self.headers, timeout=10
+            )
+            resp.raise_for_status()
+        except requests.RequestException as e:
+            print("[ERROR] Geocoding API error:", e)
+            raise GeocodingError("Geocoding request failed")
+
         results = resp.json()
         if not results:
             print("[DEBUG] No geocoding results returned from Nominatim.")
@@ -84,7 +104,6 @@ class GeocodingAgent:
         lat = float(first["lat"])
         lon = float(first["lon"])
         display_name = first.get("display_name", place)
-        # Use just the first part like "Bengaluru" or "Paris"
         short_name = display_name.split(",")[0]
         return lat, lon, short_name
 
@@ -100,7 +119,9 @@ class TourismAgent:
 
         # --- INTENT DETECTION ---
         wants_weather = ("temperature" in text) or ("weather" in text)
-        wants_places = any(w in text for w in ["place", "places", "visit", "attraction", "sightseeing"])
+        wants_places = any(
+            w in text for w in ["place", "places", "visit", "attraction", "sightseeing"]
+        )
 
         # If user only writes city name (no weather & no places keywords), default to places
         if not wants_weather and not wants_places:
@@ -113,7 +134,8 @@ class TourismAgent:
 
         try:
             lat, lon, display_name = self.geo_agent.geocode(place)
-        except GeocodingError:
+        except GeocodingError as e:
+            print("[INFO] Geocoding error:", e)
             return "I don't know this place exist."
 
         # ---------- LOGIC BRANCHES ----------
@@ -123,7 +145,10 @@ class TourismAgent:
             temp, rain_chance = self.weather_agent.get_weather(lat, lon)
 
             if temp is not None and rain_chance is not None:
-                return f"In {display_name} it's currently {temp}°C with a chance of {rain_chance}% to rain."
+                return (
+                    f"In {display_name} it's currently {temp}°C with a chance of "
+                    f"{rain_chance}% to rain."
+                )
             elif temp is not None:
                 return f"In {display_name} it's currently {temp}°C."
             else:
@@ -134,9 +159,17 @@ class TourismAgent:
         # 2️⃣ WEATHER + PLACES
         if wants_weather:
             temp, rain_chance = self.weather_agent.get_weather(lat, lon)
-            parts.append(
-                f"In {display_name} it's currently {temp}°C with a chance of {rain_chance}% to rain."
-            )
+            if temp is not None and rain_chance is not None:
+                parts.append(
+                    f"In {display_name} it's currently {temp}°C "
+                    f"with a chance of {rain_chance}% to rain."
+                )
+            elif temp is not None:
+                parts.append(f"In {display_name} it's currently {temp}°C.")
+            else:
+                parts.append(
+                    f"Sorry, I couldn't get the weather for {display_name}."
+                )
 
         # 3️⃣ PLACES (ONLY or in addition to weather)
         if wants_places:
@@ -150,7 +183,9 @@ class TourismAgent:
                 )
                 parts.append(prefix + "\n" + "\n".join(places))
             else:
-                parts.append(f"Sorry, I couldn't find tourist places near {display_name}.")
+                parts.append(
+                    f"Sorry, I couldn't find tourist places near {display_name}."
+                )
 
         return " ".join(parts)
 
@@ -160,21 +195,42 @@ class TourismAgent:
 
         if " to " in lower:
             idx = lower.rfind(" to ")
-            candidate = text[idx + 4:].strip()
+            candidate = text[idx + 4 :].strip()
         else:
             candidate = text
 
         for sep in [",", "?", ".", " and ", " what "]:
             lower_cand = candidate.lower()
             if sep in lower_cand:
-                candidate = candidate[:lower_cand.index(sep)].strip()
+                candidate = candidate[: lower_cand.index(sep)].strip()
                 break
 
         stop_words = {
-            "i", "im", "i'm", "going", "go", "to", "what", "is", "the",
-            "there", "and", "visit", "places", "place", "temperature",
-            "weather", "trip", "in", "city", "are", "can", "you",
-            "my", "let's", "lets"
+            "i",
+            "im",
+            "i'm",
+            "going",
+            "go",
+            "to",
+            "what",
+            "is",
+            "the",
+            "there",
+            "and",
+            "visit",
+            "places",
+            "place",
+            "temperature",
+            "weather",
+            "trip",
+            "in",
+            "city",
+            "are",
+            "can",
+            "you",
+            "my",
+            "let's",
+            "lets",
         }
         words = candidate.split()
         filtered = [w for w in words if w.lower() not in stop_words]
@@ -192,24 +248,44 @@ class TourismAgent:
 
 # ----------------- FLASK APP -----------------
 
-app = Flask(__name__)
+
+# Make sure you have:
+# backend/
+#   app.py
+#   templates/index.html
+#   static/style.css  (or static/css/style.css)
+app = Flask(__name__, template_folder="templates", static_folder="static")
+
 agent = TourismAgent(email="praveenbalure786@gmail.com")  # your email
 
 
 @app.route("/")
 def index():
+    # index.html must be in backend/templates/
     return render_template("index.html")
 
 
 @app.route("/api/query", methods=["POST"])
 def api_query():
-    data = request.get_json() or {}
-    message = data.get("message", "").strip()
+    try:
+        data = request.get_json(force=True) or {}
+    except Exception as e:
+        print("[ERROR] JSON parsing error:", e)
+        return jsonify({"reply": "Invalid request format."}), 400
+
+    message = (data.get("message") or "").strip()
     if not message:
         return jsonify({"reply": "Please enter your question or trip plan."}), 400
-    reply = agent.handle_request(message)
+
+    try:
+        reply = agent.handle_request(message)
+    except Exception as e:
+        print("[ERROR] While handling request:", e)
+        reply = "Something went wrong while planning your trip. Please try again."
+
     return jsonify({"reply": reply})
 
 
 if __name__ == "__main__":
+    # Access at http://127.0.0.1:5000/
     app.run(host="127.0.0.1", port=5000, debug=True)

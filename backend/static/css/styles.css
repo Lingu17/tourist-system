@@ -1,0 +1,193 @@
+/* Bigger / More Spacious UI */
+
+/* Background */
+body {
+    margin: 0;
+    padding: 0;
+    font-family: system-ui, sans-serif;
+    background: radial-gradient(circle at top, #2d4bff 0, #050816 50%, #000000 100%);
+    color: #f5f5f5;
+}
+
+/* Center screen */
+.app-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 30px;
+    box-sizing: border-box;
+}
+
+/* Card */
+.card {
+    background: rgba(15, 23, 42, 0.92);
+    border-radius: 22px;
+    padding: 35px 30px;
+    max-width: 700px;  /* ⬆️ Wider */
+    width: 100%;
+    box-shadow: 0 28px 60px rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(148, 163, 184, 0.4);
+}
+
+/* Title */
+.title {
+    margin: 0 0 10px;
+    font-size: 2.2rem; /* ⬆️ Larger */
+    font-weight: 700;
+    text-align: center;
+    color: #e5e7eb;
+}
+
+/* Subtitle */
+.subtitle {
+    margin: 0 0 25px;
+    text-align: center;
+    font-size: 1.15rem; /* ⬆️ Larger */
+    color: #9ca3af;
+    line-height: 1.6;
+    font-weight: 400;
+}
+
+.example {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(59, 130, 246, 0.2);
+    color: #bfdbfe;
+    font-size: 1rem;
+}
+
+/* Form */
+.label {
+    display: block;
+    font-size: 1.1rem;
+    margin-bottom: 10px;
+    color: #e5e7eb;
+    font-weight: 500;
+}
+
+/* Larger textarea */
+#user-input {
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 14px;
+    border: 2px solid #374151;
+    background: #020617;
+    color: #f9fafb;
+    padding: 14px 18px;
+    font-size: 1.1rem;  /* ⬆️ Larger text */
+    resize: vertical;
+    height: 140px; /* ⬆️ Bigger */
+    outline: none;
+}
+
+#user-input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.8);
+}
+
+/* BIG Button */
+#submit-btn {
+    margin-top: 16px;
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 999px;
+    border: none;
+    background: linear-gradient(135deg, #4f46e5, #06b6d4);
+    color: #f9fafb;
+    font-weight: 700;
+    font-size: 1.25rem;   /* ⬆️ Big */
+    cursor: pointer;
+    transition: transform 0.08s ease, box-shadow 0.12s ease, opacity 0.15s ease;
+}
+
+#submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 25px rgba(15, 23, 42, 0.7);
+}
+
+#submit-btn:active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+#submit-btn:disabled {
+    opacity: 0.7;
+    cursor: default;
+}
+
+/* Loader */
+.loader {
+    margin-top: 16px;
+    font-size: 1.1rem;
+    color: #facc15;
+    font-weight: 600;
+}
+
+/* Response Box */
+.response {
+    margin-top: 24px;
+    padding: 18px;
+    border-radius: 16px;
+    background: rgba(15, 23, 42, 0.9);
+    border: 1px solid rgba(55, 65, 81, 0.9);
+}
+
+.response h2 {
+    margin: 0 0 8px;
+    font-size: 1.35rem;
+    font-weight: 700;
+    color: #e5e7eb;
+}
+
+#response-text {
+    margin: 0;
+    white-space: pre-wrap;
+    font-family: "JetBrains Mono", Consolas, monospace;
+    font-size: 1.1rem;
+    color: #d1fae5;
+}
+
+/* Footer */
+.footer {
+    margin-top: 22px;
+    font-size: 0.95rem;
+    text-align: center;
+    color: #94a3b8;
+    font-weight: 400;
+}
+
+/* Utility */
+.hidden {
+    display: none;
+}
+
+/* Mobile responsive */
+@media (max-width: 520px) {
+    .card {
+        padding: 28px 20px;
+    }
+
+    .title {
+        font-size: 1.85rem;
+    }
+
+    .subtitle {
+        font-size: 1rem;
+    }
+
+    #user-input {
+        font-size: 1rem;
+        height: 110px;
+    }
+
+    #submit-btn {
+        font-size: 1.1rem;
+    }
+
+    #response-text {
+        font-size: 1rem;
+    }
+}
