@@ -41,8 +41,8 @@ Planning a day trip usually means three tabs: a map to find the place, a forecas
 | :--- | :--- |
 | **Plain-language requests** | Ask naturally: "I'm going to Mysuru", "What is the weather in Goa?", "Places to visit in Paris and the temperature". |
 | **Place lookup** | The destination is geocoded with OpenStreetMap Nominatim, including its full display name. |
-| **Weather** | Current temperature and the day's highest chance of rain from Open-Meteo, in the destination's time zone. |
-| **Attractions** | Up to five named attractions and parks within 5 km, from the Overpass API. |
+| **Weather** | Current temperature and the day's highest chance of rain from Open-Meteo, in the destination's time zone, with MET Norway as a temperature fallback. |
+| **Attractions** | Up to five named attractions and parks within 5 km, from the Overpass API, or nearby Wikipedia landmarks when Overpass is busy. |
 | **Intent-aware replies** | Ask for weather only, places only, or both; a bare city name defaults to places. |
 | **Clear failures** | Unknown places, empty results and API errors return a readable message instead of a crash. |
 
@@ -62,10 +62,10 @@ Bot:  In Mysuru it's currently 26.1°C with a chance of 100% to rain.
 | Engineering problem | Implementation | Inspect the code |
 | :--- | :--- | :--- |
 | One request needs three different data sources | Each source has its own agent (`GeocodingAgent`, `WeatherAgent`, `PlacesAgent`); a `TourismAgent` orchestrates them. | [`backend/app.py`](backend/app.py) |
-| Users don't type clean city names | The place is cut from the text after "to", trimmed at punctuation and conjunctions, then stripped of stop words like "going", "trip" and "weather". | [`_extract_place`](backend/app.py#L192) |
-| Users ask for different things | Keyword intent detection decides between weather, places or both, and defaults to places for a bare city name. | [`handle_request`](backend/app.py#L117) |
-| Free public APIs are slow or down sometimes | Every call has a timeout (10 s, 30 s for Overpass); failures are logged and turned into a friendly reply. | [`WeatherAgent`](backend/app.py#L12), [`PlacesAgent`](backend/app.py#L42) |
-| Nominatim requires an identifying client | Requests send a descriptive `User-Agent` with a contact address, as its usage policy asks. | [`GeocodingAgent`](backend/app.py#L79) |
+| Users don't type clean city names | The place is cut from the text after "to", trimmed at punctuation and conjunctions, then stripped of stop words like "going", "trip" and "weather". | [`_extract_place`](backend/app.py#L327) |
+| Users ask for different things | Keyword intent detection decides between weather, places or both, and defaults to places for a bare city name. | [`handle_request`](backend/app.py#L239) |
+| Free public APIs are slow or down sometimes | Each source has a fallback (an Overpass mirror, then Wikipedia; MET Norway for weather), calls have short timeouts and run in parallel, and failures are logged with the HTTP status and turned into a friendly reply. | [`WeatherAgent`](backend/app.py#L44), [`PlacesAgent`](backend/app.py#L101) |
+| Public APIs require an identifying client | Every request sends a descriptive `User-Agent` with a contact address, as the Nominatim and Overpass usage policies ask. | [`client_headers`](backend/app.py#L23) |
 
 ## Architecture
 
@@ -74,24 +74,24 @@ flowchart LR
     UI[Chat page<br/>templates/index.html] -->|POST /api/query| API[Flask app]
     API --> T[TourismAgent<br/>intent + place extraction]
     T --> G[GeocodingAgent<br/>Nominatim]
-    T --> W[WeatherAgent<br/>Open-Meteo]
-    T --> P[PlacesAgent<br/>Overpass API]
+    T --> W[WeatherAgent<br/>Open-Meteo, MET Norway]
+    T --> P[PlacesAgent<br/>Overpass API, Wikipedia]
     G & W & P --> T
     T -->|reply| UI
 ```
 
 - **Backend:** one Flask app ([`backend/app.py`](backend/app.py)) with the agents and two routes: `GET /` and `POST /api/query`.
 - **Frontend:** a server-rendered chat page ([`backend/templates/index.html`](backend/templates/index.html)) with its stylesheet in [`backend/static/css`](backend/static/css).
-- **Data:** no database and no API keys; everything comes from public OpenStreetMap and Open-Meteo services.
+- **Data:** no database and no API keys; everything comes from public OpenStreetMap, Open-Meteo, MET Norway and Wikipedia services.
 
 <details>
 <summary><strong>Scope and known limitations</strong></summary>
 
 - Intent detection and place extraction are keyword rules, not a language model, so unusual phrasing can pick the wrong words as the place.
-- Attractions are limited to OpenStreetMap nodes tagged as attractions or parks within 5 km, so coverage depends on map data.
+- Attractions are limited to OpenStreetMap nodes tagged as attractions or parks within 5 km, so coverage depends on map data. The Wikipedia fallback keeps articles whose short description names a sight (palace, museum, temple, park...), so it can miss places or include a few less touristy ones.
 - Weather is the current temperature plus the day's peak rain probability, not a multi-day forecast.
 - Public APIs have rate limits; heavy use should add caching.
-- As of 18 October 2026 the Overpass API rejects the app's requests (HTTP 406), so attraction lists come back empty, and the hosted demo also fails to reach the weather API. Geocoding still works there. Local runs return weather.
+- On the hosted demo, Open-Meteo calls currently fail, so replies give the MET Norway temperature without a rain chance. Local runs include it.
 
 </details>
 
@@ -106,7 +106,7 @@ pip install -r requirements.txt
 python app.py
 ```
 
-Open [http://127.0.0.1:5000](http://127.0.0.1:5000). Before heavy use, set your own contact email in the `TourismAgent(email=...)` line of `app.py`; Nominatim uses it to identify the client.
+Open [http://127.0.0.1:5000](http://127.0.0.1:5000). Before heavy use, set the `CONTACT_EMAIL` environment variable to your own address; the public APIs use it to identify the client.
 
 **API:**
 
